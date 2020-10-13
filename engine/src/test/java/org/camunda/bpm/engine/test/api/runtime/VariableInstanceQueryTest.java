@@ -26,7 +26,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -35,9 +34,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.assertj.core.groups.Tuple;
 import org.camunda.bpm.engine.ProcessEngineException;
 import org.camunda.bpm.engine.batch.Batch;
+import org.camunda.bpm.engine.impl.db.sql.DbSqlSessionFactory;
+import org.camunda.bpm.engine.impl.test.RequiredDatabase;
 import org.camunda.bpm.engine.runtime.ActivityInstance;
 import org.camunda.bpm.engine.runtime.CaseInstance;
 import org.camunda.bpm.engine.runtime.Execution;
@@ -60,18 +60,20 @@ import org.junit.Test;
  * @author roman.smirnov
  */
 public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
+  
+  protected static String PROC_DEF_KEY = "oneTaskProcess";
 
   @Test
   @Deployment(resources={"org/camunda/bpm/engine/test/api/runtime/oneTaskProcess.bpmn20.xml"})
   public void testQuery() {
     // given
-    Map<String, Object> variables1 = new HashMap<String, Object>();
+    Map<String, Object> variables1 = new HashMap<>();
     variables1.put("intVar", 123);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("stringVar", "test");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery();
@@ -100,10 +102,31 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     }
   }
 
+  /* Related to https://jira.camunda.com/browse/CAM-12592 */
+  @Test
+  @RequiredDatabase(includes = DbSqlSessionFactory.ORACLE)
+  @Deployment(resources={"org/camunda/bpm/engine/test/api/runtime/oneTaskProcess.bpmn20.xml"})
+  public void testEmptyStringVariableQuery() {
+    // given
+    // an empty String variable
+    // and a process started with the empty variable
+    String varName = "testVar";
+    VariableMap variables = Variables.putValue(varName, "");
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
+
+    // when
+    // the variable is queried from the database (Oracle)
+    VariableInstance var = runtimeService.createVariableInstanceQuery().variableName(varName).singleResult();
+
+    // then
+    assertThat(var.getValue()).isNotNull();
+    assertThat(var.getValue()).isEqualTo("");
+  }
+  
   @Test
   public void testQueryByVariableId() {
     // given
-    Map<String, Object> variables = new HashMap<String, Object>();
+    Map<String, Object> variables = new HashMap<>();
     variables.put("var1", "test");
     variables.put("var2", "test");
     Task task = taskService.newTask();
@@ -120,7 +143,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     VariableInstance resultById = query.singleResult();
     assertEquals(result.getId(), resultById.getId());
 
-    // delete task
+    // delete taskoneTaskProcess
     taskService.deleteTask(task.getId(), true);
   }
 
@@ -130,7 +153,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("stringVar", "test");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableName("stringVar");
@@ -155,7 +178,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     String variableValue = "a";
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("process", variableValue);
-    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
     taskService.setVariableLocal(task.getId(), "task", variableValue);
@@ -186,7 +209,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("string%Var", "test");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableNameLike("%ing\\%V%");
@@ -210,7 +233,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("stringVar", "test");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableNameLike("%ingV_");
@@ -228,7 +251,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("stringVar", "test");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueEquals("stringVar", "test");
@@ -252,11 +275,11 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("stringVar", "test");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("stringVar", "test123");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueNotEquals("stringVar", "test123");
@@ -280,15 +303,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("stringVar", "a");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("stringVar", "b");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("stringVar", "c");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueGreaterThan("stringVar", "a");
@@ -319,15 +342,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("stringVar", "a");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("stringVar", "b");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("stringVar", "c");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueGreaterThanOrEqual("stringVar", "a");
@@ -360,15 +383,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("stringVar", "a");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("stringVar", "b");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("stringVar", "c");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueLessThan("stringVar", "c");
@@ -399,15 +422,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("stringVar", "a");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("stringVar", "b");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("stringVar", "c");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueLessThanOrEqual("stringVar", "c");
@@ -440,15 +463,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("stringVar", "test123");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("stringVar", "test456");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("stringVar", "test789");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueLike("stringVar", "test%");
@@ -481,11 +504,11 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("stringVar", "test_123");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("stringVar", "test%456");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueLike("stringVar", "test\\_%");
@@ -518,7 +541,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("intValue", 1234);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueEquals("intValue", 1234);
@@ -542,11 +565,11 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("intValue", 1234);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("intValue", 5555);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueNotEquals("intValue", 5555);
@@ -570,15 +593,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("intValue", 1234);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("intValue", 5555);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("intValue", 9876);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueGreaterThan("intValue", 1234);
@@ -609,15 +632,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("intValue", 1234);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("intValue", 5555);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("intValue", 9876);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueGreaterThanOrEqual("intValue", 1234);
@@ -650,15 +673,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("intValue", 1234);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("intValue", 5555);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("intValue", 9876);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueLessThan("intValue", 9876);
@@ -689,15 +712,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("intValue", 1234);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("intValue", 5555);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("intValue", 9876);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueLessThanOrEqual("intValue", 9876);
@@ -730,7 +753,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("longValue", 123456L);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueEquals("longValue", 123456L);
@@ -754,11 +777,11 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("longValue", 123456L);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("longValue", 987654L);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueNotEquals("longValue", 987654L);
@@ -782,15 +805,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("longValue", 123456L);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("longValue", 987654L);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("longValue", 555555L);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueGreaterThan("longValue", 123456L);
@@ -821,15 +844,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("longValue", 123456L);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("longValue", 987654L);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("longValue", 555555L);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueGreaterThanOrEqual("longValue", 123456L);
@@ -862,15 +885,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("longValue", 123456L);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("longValue", 987654L);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("longValue", 555555L);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueLessThan("longValue", 987654L);
@@ -901,15 +924,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("longValue", 123456L);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("longValue", 987654L);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("longValue", 555555L);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueLessThanOrEqual("longValue", 987654L);
@@ -942,7 +965,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("doubleValue", 123.456);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueEquals("doubleValue", 123.456);
@@ -966,11 +989,11 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("doubleValue", 123.456);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("doubleValue", 654.321);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueNotEquals("doubleValue", 654.321);
@@ -994,15 +1017,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("doubleValue", 123.456);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("doubleValue", 654.321);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("doubleValue", 999.999);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueGreaterThan("doubleValue", 123.456);
@@ -1033,15 +1056,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("doubleValue", 123.456);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("doubleValue", 654.321);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("doubleValue", 999.999);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueGreaterThanOrEqual("doubleValue", 123.456);
@@ -1074,15 +1097,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("doubleValue", 123.456);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("doubleValue", 654.321);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("doubleValue", 999.999);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueLessThan("doubleValue", 999.999);
@@ -1113,15 +1136,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("doubleValue", 123.456);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("doubleValue", 654.321);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("doubleValue", 999.999);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueLessThanOrEqual("doubleValue", 999.999);
@@ -1154,7 +1177,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("shortValue", (short) 123);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueEquals("shortValue", (short) 123);
@@ -1178,11 +1201,11 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("shortValue", (short) 123);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("shortValue", (short) 999);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueNotEquals("shortValue", (short) 999);
@@ -1206,15 +1229,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("shortValue", (short) 123);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("shortValue", (short) 999);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("shortValue", (short) 555);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueGreaterThan("shortValue", (short) 123);
@@ -1245,15 +1268,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("shortValue", (short) 123);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("shortValue", (short) 999);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("shortValue", (short) 555);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueGreaterThanOrEqual("shortValue", (short) 123);
@@ -1286,15 +1309,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("shortValue", (short) 123);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("shortValue", (short) 999);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("shortValue", (short) 555);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueLessThan("shortValue", (short) 999);
@@ -1325,15 +1348,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("shortValue", (short) 123);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("shortValue", (short) 999);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("shortValue", (short) 555);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueLessThanOrEqual("shortValue", (short) 999);
@@ -1367,7 +1390,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     byte[] bytes = "somebytes".getBytes();
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("bytesVar", bytes);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueEquals("bytesVar", bytes);
@@ -1389,7 +1412,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
 
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("date", now);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueEquals("date", now);
@@ -1413,7 +1436,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("stringVar", "test");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueEquals("stringVar", "notFoundValue");
@@ -1431,7 +1454,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("nullValue", null);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueEquals("nullValue", null);
@@ -1455,15 +1478,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("value", null);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("value", (short) 999);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("value", "abc");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().variableValueNotEquals("value", null);
@@ -1497,7 +1520,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("stringVar", "test");
     variables.put("myVar", "test123");
-    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().processInstanceIdIn(processInstance.getId());
@@ -1530,8 +1553,8 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("stringVar", "test");
     variables.put("myVar", "test123");
-    ProcessInstance processInstance1 = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
-    ProcessInstance processInstance2 = runtimeService.startProcessInstanceByKey("oneTaskProcess");
+    ProcessInstance processInstance1 = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
+    ProcessInstance processInstance2 = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().processInstanceIdIn(processInstance1.getId(), processInstance2.getId());
@@ -1563,8 +1586,8 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("stringVar", "test");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess");
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().processInstanceIdIn("aProcessInstanceId");
@@ -1583,7 +1606,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("stringVar", "test");
     variables.put("myVar", "test123");
-    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().executionIdIn(processInstance.getId());
@@ -1616,11 +1639,11 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("stringVar", "test");
     variables1.put("myVar", "test123");
-    ProcessInstance processInstance1 = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    ProcessInstance processInstance1 = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("myVar", "test123");
-    ProcessInstance processInstance2 = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    ProcessInstance processInstance2 = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().executionIdIn(processInstance1.getId(), processInstance2.getId());
@@ -1652,8 +1675,8 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("stringVar", "test");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
-    runtimeService.startProcessInstanceByKey("oneTaskProcess");
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().executionIdIn("anExecutionId");
@@ -1671,7 +1694,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("stringVar", "test");
-    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
 
@@ -1699,9 +1722,9 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("stringVar", "test");
-    ProcessInstance processInstance1 = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
-    ProcessInstance processInstance2 = runtimeService.startProcessInstanceByKey("oneTaskProcess");
-    ProcessInstance processInstance3 = runtimeService.startProcessInstanceByKey("oneTaskProcess");
+    ProcessInstance processInstance1 = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
+    ProcessInstance processInstance2 = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY);
+    ProcessInstance processInstance3 = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY);
 
     Task task1 = taskService.createTaskQuery().processInstanceId(processInstance1.getId()).singleResult();
     Task task2 = taskService.createTaskQuery().processInstanceId(processInstance2.getId()).singleResult();
@@ -1740,7 +1763,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("stringVar", "test");
-    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
 
@@ -1825,7 +1848,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("stringVar", "test");
-    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
     String activityId = runtimeService.getActivityInstance(processInstance.getId()).getChildActivityInstances()[0].getId();
 
     Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
@@ -1859,15 +1882,15 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("stringVar", "test");
     variables1.put("myVar", "test123");
-    ProcessInstance procInst1 = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    ProcessInstance procInst1 = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("myVar", "test123");
-    ProcessInstance procInst2 =  runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    ProcessInstance procInst2 =  runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     Map<String, Object> variables3 = new HashMap<String, Object>();
     variables3.put("myVar", "test123");
-    ProcessInstance procInst3 = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables3);
+    ProcessInstance procInst3 = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables3);
 
     Task task1 = taskService.createTaskQuery().processInstanceId(procInst1.getId()).singleResult();
     Task task2 = taskService.createTaskQuery().processInstanceId(procInst2.getId()).singleResult();
@@ -1932,7 +1955,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("stringVar", "test");
     variables.put("myVar", "test123");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().orderByVariableName().asc();
@@ -1956,7 +1979,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("stringVar", "test");
     variables.put("myVar", "test123");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().orderByVariableName().desc();
@@ -1982,7 +2005,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("intVar", 123);
     variables.put("myVar", "test123");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().orderByVariableType().asc();
@@ -2008,7 +2031,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("intVar", 123);
     variables.put("myVar", "test123");
-    runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().orderByVariableType().desc();
@@ -2033,12 +2056,12 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("intVar", 123);
-    ProcessInstance procInst1 = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    ProcessInstance procInst1 = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
     String activityId1 = runtimeService.getActivityInstance(procInst1.getId()).getChildActivityInstances()[0].getId();
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("stringVar", "test");
-    ProcessInstance procInst2 = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    ProcessInstance procInst2 = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
     String activityId2 = runtimeService.getActivityInstance(procInst2.getId()).getChildActivityInstances()[0].getId();
 
     int comparisonResult = activityId1.compareTo(activityId2);
@@ -2075,11 +2098,11 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     // given
     Map<String, Object> variables1 = new HashMap<String, Object>();
     variables1.put("intVar", 123);
-    ProcessInstance procInst1 = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables1);
+    ProcessInstance procInst1 = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables1);
 
     Map<String, Object> variables2 = new HashMap<String, Object>();
     variables2.put("stringVar", "test");
-    ProcessInstance procInst2 = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables2);
+    ProcessInstance procInst2 = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables2);
 
     String activityId1 = runtimeService.getActivityInstance(procInst1.getId()).getChildActivityInstances()[0].getId();
     String activityId2 = runtimeService.getActivityInstance(procInst2.getId()).getChildActivityInstances()[0].getId();
@@ -2122,7 +2145,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
 
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("serializableVar", serializable);
-    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
+    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables);
 
     // when
     VariableInstanceQuery query = runtimeService.createVariableInstanceQuery().processInstanceIdIn(processInstance.getId());
@@ -2387,7 +2410,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
         .mimeType(mimeType)
         .create();
 
-    runtimeService.startProcessInstanceByKey("oneTaskProcess",
+    runtimeService.startProcessInstanceByKey(PROC_DEF_KEY,
         Variables.createVariables().putValueTyped("fileVar", fileValue));
 
     // when enabling binary fetching
@@ -2757,7 +2780,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
   @Deployment(resources={"org/camunda/bpm/engine/test/api/runtime/oneTaskProcess.bpmn20.xml"})
   public void testVariablesProcessDefinitionId() {
     // given
-    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess", 
+    ProcessInstance processInstance = runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, 
         Variables.createVariables().putValue("foo", "bar"));
 
     // when
@@ -2773,7 +2796,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
   public void shouldGetBatchId() {
     // given
     String processInstanceId =
-        runtimeService.startProcessInstanceByKey("oneTaskProcess").getId();
+        runtimeService.startProcessInstanceByKey(PROC_DEF_KEY).getId();
 
     List<String> processInstances = Collections.singletonList(processInstanceId);
 
@@ -2798,7 +2821,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     VariableMap variables = Variables.putValue("foo", "bar");
 
     String processInstanceId =
-        runtimeService.startProcessInstanceByKey("oneTaskProcess", variables).getId();
+        runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables).getId();
 
     List<String> processInstances = Collections.singletonList(processInstanceId);
 
@@ -2835,7 +2858,7 @@ public class VariableInstanceQueryTest extends PluggableProcessEngineTest {
     VariableMap variables = Variables.putValue("foo", "bar");
 
     String processInstanceId =
-        runtimeService.startProcessInstanceByKey("oneTaskProcess", variables).getId();
+        runtimeService.startProcessInstanceByKey(PROC_DEF_KEY, variables).getId();
 
     List<String> processInstances = Collections.singletonList(processInstanceId);
 

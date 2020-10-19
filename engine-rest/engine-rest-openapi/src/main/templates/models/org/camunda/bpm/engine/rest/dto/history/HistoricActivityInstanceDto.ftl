@@ -3,16 +3,19 @@
     <@lib.property
         name = "id"
         type = "string"
+        nullable = false
         desc = "The id of the activity instance."/>
 
     <@lib.property
         name = "parentActivityInstanceId"
         type = "string"
+        nullable = false
         desc = "The id of the parent activity instance, for example a sub process instance."/>
 
     <@lib.property
         name = "activityId"
         type = "string"
+        nullable = false
         desc = "The id of the activity that this object is an instance of."/>
 
     <@lib.property
@@ -58,11 +61,13 @@
     <@lib.property
         name = "calledProcessInstanceId"
         type = "string"
+        nullable = false
         desc = "The id of the called process instance. Is only set if the activity is a call activity and the called instance a process instance."/>
 
     <@lib.property
         name = "calledCaseInstanceId"
         type = "string"
+        nullable = false
         desc = "The id of the called case instance. Is only set if the activity is a call activity and the called instance a case instance."/>
 
     <@lib.property
@@ -99,6 +104,7 @@
     <@lib.property
         name = "tenantId"
         type = "string"
+        nullable = false
         desc = "The tenant id of the activity instance."/>
 
     <@lib.property

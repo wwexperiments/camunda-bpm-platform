@@ -14,21 +14,25 @@
   <@lib.property
       name = "superProcessInstanceId"
       type = "string"
+      nullable = false
       desc = "The id of the parent process instance, if it exists."/>
 
   <@lib.property
       name = "superCaseInstanceId"
       type = "string"
+      nullable = false
       desc = "The id of the parent case instance, if it exists."/>
 
   <@lib.property
       name = "caseInstanceId"
       type = "string"
+      nullable = false
       desc = "The id of the parent case instance, if it exists."/>
 
   <@lib.property
       name = "processDefinitionName"
       type = "string"
+      nullable = false
       desc = "The name of the process definition that this process instance belongs to."/>
 
   <@lib.property
@@ -51,6 +55,7 @@
   <@lib.property
       name = "businessKey"
       type = "string"
+      nullable = false
       desc = "The business key of the process instance."/>
 
   <@lib.property
@@ -91,11 +96,13 @@
   <@lib.property
       name = "deleteReason"
       type = "string"
+      nullable = false
       desc = "The provided delete reason in case the process instance was canceled during execution."/>
 
   <@lib.property
       name = "tenantId"
       type = "string"
+      nullable = false
       desc = "The tenant id of the process instance."/>
 
   <@lib.property

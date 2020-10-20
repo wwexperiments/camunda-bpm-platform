@@ -66,7 +66,7 @@
 
         <module>qa</module>
 
-        <module>webapps/h2-webapp</module>
+        <module>distro/h2-webapp</module>
 
         <module>javaee/ejb-service</module>
         <module>javaee/ejb-client</module>
@@ -121,7 +121,7 @@
       <modules>
         <module>qa</module>
 
-        <module>webapps/h2-webapp</module>
+        <module>distro/h2-webapp</module>
 
         <module>engine</module>
         <module>engine-cdi</module>

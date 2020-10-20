@@ -86,6 +86,8 @@
 
         <module>engine-plugins</module>
 
+        <module>webapps</module>
+
         <module>distro/license-book</module>
         <module>distro/jbossas7</module>
         <module>distro/tomcat</module>

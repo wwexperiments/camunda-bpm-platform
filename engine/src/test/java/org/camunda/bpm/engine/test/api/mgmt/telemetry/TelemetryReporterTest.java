@@ -52,6 +52,7 @@ import org.camunda.bpm.engine.impl.BootstrapEngineCommand;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.camunda.bpm.engine.impl.cfg.StandaloneInMemProcessEngineConfiguration;
 import org.camunda.bpm.engine.impl.metrics.Meter;
+import org.camunda.bpm.engine.impl.telemetry.PlatformTelemetryRegistry;
 import org.camunda.bpm.engine.impl.telemetry.dto.ApplicationServer;
 import org.camunda.bpm.engine.impl.telemetry.dto.Command;
 import org.camunda.bpm.engine.impl.telemetry.dto.Data;
@@ -478,7 +479,7 @@ public class TelemetryReporterTest {
     managementService.toggleTelemetry(true);
     // set application server after initialization
     String applicationServerVersion = "Tomcat 10";
-    configuration.getTelemetryRegistry().setApplicationServer(applicationServerVersion);
+    PlatformTelemetryRegistry.setApplicationServer(applicationServerVersion);
 
     Data expectedData = adjustDataWithAppServerInfo(configuration.getTelemetryData(), applicationServerVersion);
 
